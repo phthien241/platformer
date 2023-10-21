@@ -12,7 +12,8 @@ function PhaserGame() {
             physics:{
                 default: "arcade",
                 arcade:{
-                    debug:true
+                    // gravity:{y:200},
+                    // debug:true
                 }
             },
             scene:[GameScene]
