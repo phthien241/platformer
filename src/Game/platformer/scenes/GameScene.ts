@@ -8,6 +8,7 @@ export default class GameScene extends Phaser.Scene {
     private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
     private eagle: any
     private cherry: any
+    private gem: any
     private width!: number;
     private height!: number;
     constructor() {
@@ -47,6 +48,10 @@ export default class GameScene extends Phaser.Scene {
             frameWidth: 35,
             frameHeight: 32
         })
+        this.load.spritesheet("gem", process.env.PUBLIC_URL + "/assets/spritesheets/gem.png", {
+            frameWidth: 15,
+            frameHeight: 10
+        })
         this.load.image("hurt-1", process.env.PUBLIC_URL + "/assets/sprites/player/hurt/player-hurt-1.png")
         this.load.image("hurt-2", process.env.PUBLIC_URL + "/assets/sprites/player/hurt/player-hurt-2.png")
     }
@@ -60,8 +65,9 @@ export default class GameScene extends Phaser.Scene {
         this.createAnims();
 
         this.player = this.physics.add.sprite(0, this.height / 2 - 20, 'player').setOrigin(0, 1).setGravityY(300)
-        this.eagle = this.physics.add.sprite(this.width / 2, this.height / 2 - 20, "eagle").play("eagle").setOrigin(0, 1).setImmovable(true);
+        this.eagle = this.physics.add.sprite(this.width / 2, this.height / 2 - 20, "eagle").play("eagle").setOrigin(0, 1).setImmovable(true).setVelocityY(100);
         this.cherry = this.physics.add.sprite(this.width / 2, this.height / 2 - 70, "cherry").play("cherry").setOrigin(0, 1);
+        this.gem = this.physics.add.sprite(this.width /2 + 30, this.height / 2 - 90, "gem").play("gem").setOrigin(0,1).setScale(1.5)
 
         this.createCollider();
         this.player.anims.play('idle', true);
@@ -71,6 +77,11 @@ export default class GameScene extends Phaser.Scene {
 
     update() {
         if (this.playerIsHurt) return;
+        if(this.eagle.y>this.height/2+50){
+            this.eagle.setVelocityY(-100)
+        }else if(this.eagle.y<this.height/2-100){
+            this.eagle.setVelocityY(100)
+        }
         const isOnGround = this.player?.body?.touching.down;
         if (this.cursors?.right?.isDown) {
             if (isOnGround) {
@@ -205,12 +216,25 @@ export default class GameScene extends Phaser.Scene {
             frames: this.anims.generateFrameNumbers("item-feedback", { start: 0, end: 3 }),
             repeat: 0
         })
+        this.anims.create({
+            key: "item-feedback",
+            frameRate: 12,
+            frames: this.anims.generateFrameNumbers("item-feedback", { start: 0, end: 3 }),
+            repeat: 0
+        })
+        this.anims.create({
+            key: "gem",
+            frameRate: 12,
+            frames: this.anims.generateFrameNumbers("gem", { start: 0, end: 4 }),
+            repeat: -1
+        })
     }
 
     createCollider() {
         this.physics.add.collider(this.player, this.platforms)
         this.physics.add.collider(this.player, this.eagle, this.handlePlayerEnemyCollision, undefined, this);
         this.physics.add.collider(this.player, this.cherry, this.handlePlayerItemsCollision, undefined, this)
+        this.physics.add.collider(this.player, this.gem, this.handlePlayerItemsCollision, undefined, this)
     }
 
     handlePlayerEnemyCollision(player: any, enemy: any) {
@@ -235,9 +259,9 @@ export default class GameScene extends Phaser.Scene {
     handlePlayerItemsCollision(player: any, item: any) {
         const feedbackAnims = this.add.sprite(item.x + item.body.width / 2, item.y - item.body.height / 2, 'item-feedback')
         feedbackAnims.play("item-feedback");
-        feedbackAnims.on("animationcomplete",()=>{
+        feedbackAnims.on("animationcomplete", () => {
             feedbackAnims.destroy();
-        },this);
-        this.cherry.disableBody(true, true)
+        }, this);
+        item.disableBody(true, true)
     }
 }
