@@ -7,7 +7,7 @@ function PhaserGame() {
         const config = {
             type: Phaser.AUTO,
             width: 600,
-            height: 500,
+            height: 800,
             parent:"phaser-game",
             physics:{
                 default: "arcade",
