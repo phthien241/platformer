@@ -18,9 +18,10 @@ export default class GameScene extends Phaser.Scene {
   private player?: any;
   private platforms: any;
   private trap: any;
+  private stairs: any;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private eagleArray: Eagle[] = [];
-  private eaglePosition: specialEaglePosition[] = [{ x: 1915, y: 90 }];
+  private eaglePosition: specialEaglePosition[] = [{ x: 1915, y: 90 },{x:1070,y:800},{x:1153,y:760},{x:1244,y:730},{x:186,y:535},{x:269,y:554},{x:139,y:570}];
   private cherryGroup!: Phaser.GameObjects.Group;
   private gemGroup!: Phaser.GameObjects.Group;
   private width!: number;
@@ -207,25 +208,16 @@ export default class GameScene extends Phaser.Scene {
     this.createAnims();
 
     this.player = this.physics.add
-      .sprite(0, 0, "player")
+      // .sprite(0, 0, "player")
+      .sprite(1504,650,"player")
       .setOrigin(0, 1)
       .setGravityY(300)
       .setDepth(100);
-    // this.player = this.physics.add
-    //   .sprite(1750, 640, "player")
-    //   .setOrigin(0, 1)
-    //   .setGravityY(300);
     this.player.setCollideWorldBounds(true);
     this.player.body.onWorldBounds = true;
     this.player.body.setSize(20, 22);
     this.player.body.setOffset(this.player.body.offset.x, 10);
-    //     let reduction = 10;  // Amount to reduce the top border by
-
-    // // Assuming this.player is your player sprite
-    // this.player.body.setSize(20, 22);
-    // this.player.body.setOffset(0, reduction);
-
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 9; i++) {
       const x = Math.floor(Math.random() * (2000 - 45 + 1)) + 45;
       const y = Math.floor(Math.random() * (600 - 50 + 1)) + 50;
       let eagle: Eagle = {
@@ -249,7 +241,8 @@ export default class GameScene extends Phaser.Scene {
           .play("eagle")
           .setOrigin(0, 1)
           .setImmovable(true)
-          .setVelocityY(100),
+          .setVelocityY(100)
+          .setDepth(100),
         y: this.eaglePosition[i].y,
         x: this.eaglePosition[i].x,
       };
@@ -305,10 +298,7 @@ export default class GameScene extends Phaser.Scene {
       "worldbounds",
       (
         body: Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody,
-        up: boolean,
         down: boolean,
-        left: boolean,
-        right: boolean
       ) => {
         if (body.gameObject === this.player) {
           if (down) {
@@ -323,8 +313,9 @@ export default class GameScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, 5000, 800);
   }
   update() {
-    // console.log(this.player.body.x,this.player.body.y)
-    // 50-600(height), 45-2000(width)
+    if(this.player.body.x <= 140 && this.player.body.y == 650){
+      this.stairs.setAlpha(0);
+    }
     if (this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.S).isDown) {
       console.log(this.player.body.x, this.player.body.y);
     }
@@ -404,9 +395,11 @@ export default class GameScene extends Phaser.Scene {
     if (tiles) {
       this.platforms = map.createLayer("Tile Layer 1", tiles)?.setOrigin(0);
       this.trap = map.createLayer("trap", tiles)?.setOrigin(0);
+      this.stairs = map.createLayer("invisibleStair",tiles)?.setOrigin(0)
     }
     this.platforms.setCollisionByExclusion([-1]);
     this.trap.setCollisionByExclusion([-1]);
+    this.stairs.setCollisionByExclusion([-1])
   }
 
   createEnemies() {}
@@ -522,6 +515,10 @@ export default class GameScene extends Phaser.Scene {
       this.score = 0;
       this.HP = 4;
       this.scene.restart();
+    });
+
+    this.physics.add.collider(this.player, this.stairs, (player, stairs) => {
+
     });
 
     this.physics.add.overlap(
