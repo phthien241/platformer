@@ -19,9 +19,24 @@ export default class GameScene extends Phaser.Scene {
   private platforms: any;
   private trap: any;
   private stairs: any;
+  private collectingCherry:any;
+  private collectingDiamond: any;
+  private jumpEagle: any;
+  private music: any;
+  private enemyCollision: any;
+  private jumpSound: any;
+  private footstep: any;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private eagleArray: Eagle[] = [];
-  private eaglePosition: specialEaglePosition[] = [{ x: 1915, y: 90 },{x:1070,y:800},{x:1153,y:760},{x:1244,y:730},{x:186,y:535},{x:269,y:554},{x:139,y:570}];
+  private eaglePosition: specialEaglePosition[] = [
+    { x: 1915, y: 90 },
+    { x: 1070, y: 800 },
+    { x: 1153, y: 760 },
+    { x: 1244, y: 730 },
+    { x: 186, y: 535 },
+    { x: 269, y: 554 },
+    { x: 139, y: 570 },
+  ];
   private cherryGroup!: Phaser.GameObjects.Group;
   private gemGroup!: Phaser.GameObjects.Group;
   private width!: number;
@@ -30,6 +45,7 @@ export default class GameScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
   private imageGroup!: Phaser.GameObjects.Group;
   private HP = 4;
+  lastFootstepTime: number = 0;
   constructor() {
     super({ key: "GameScene" });
   }
@@ -95,6 +111,27 @@ export default class GameScene extends Phaser.Scene {
       "jump-2",
       process.env.PUBLIC_URL + "/assets/sprites/player/jump/player-jump-2.png"
     );
+    this.load.audio(
+      "cherry", process.env.PUBLIC_URL + "/assets/sound/cherry.wav"
+    );
+    this.load.audio(
+      "eagle", process.env.PUBLIC_URL + "/assets/sound/eagle.wav"
+    );
+    this.load.audio(
+      "diamond", process.env.PUBLIC_URL + "/assets/sound/diamond.wav"
+    );
+    this.load.audio(
+      "music",process.env.PUBLIC_URL + "/assets/sound/music.wav"
+    )
+    this.load.audio(
+      "footstep",process.env.PUBLIC_URL+"/assets/sound/footstep.wav"
+    )
+    this.load.audio(
+      "jump",process.env.PUBLIC_URL+"/assets/sound/jump.wav"
+    )
+    this.load.audio(
+      "enemyCollision",process.env.PUBLIC_URL+"/assets/sound/enemyCollision.wav"
+    )
     this.load.spritesheet(
       "eagle",
       process.env.PUBLIC_URL + "/assets/spritesheets/eagle-attack.png",
@@ -169,6 +206,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   create() {
+    this.music = this.sound.add("music",{loop:true});
+    this.music.play();
     this.cameras.main.setZoom(1.5);
     this.scoreText = this.add
       .text(110, 150, `Score:0`, {
@@ -199,6 +238,13 @@ export default class GameScene extends Phaser.Scene {
       }
     );
 
+    this.collectingCherry = this.sound.add("cherry");
+    this.collectingDiamond = this.sound.add("diamond")
+    this.jumpEagle = this.sound.add("eagle");
+    this.footstep = this.sound.add("footstep");
+    this.jumpSound = this.sound.add("jump")
+    this.enemyCollision = this.sound.add("enemyCollision")
+
     this.add.image(0, 0, "tiles").setOrigin(0).setDepth(1);
     this.height = this.sys.game.config.height as number;
     this.width = this.sys.game.config.width as number;
@@ -208,8 +254,8 @@ export default class GameScene extends Phaser.Scene {
     this.createAnims();
 
     this.player = this.physics.add
-      // .sprite(0, 0, "player")
-      .sprite(1504,650,"player")
+      .sprite(40, 40, "player")
+      // .sprite(1504,650,"player")
       .setOrigin(0, 1)
       .setGravityY(300)
       .setDepth(100);
@@ -293,18 +339,18 @@ export default class GameScene extends Phaser.Scene {
     this.player.anims.play("idle", true);
     this.cursors = this.input.keyboard?.createCursorKeys();
 
-    this.physics.world.setBounds(0, 0, 5000, 800);
+    this.physics.world.setBounds(0, 0, 5000, 800,true,true,false ,true);
     this.physics.world.on(
       "worldbounds",
       (
         body: Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody,
-        down: boolean,
+        down: boolean
       ) => {
         if (body.gameObject === this.player) {
           if (down) {
-            this.HP = 4;
-            this.score = 0;
-            this.scene.restart();
+            this.HP--;
+            this.handleHPChange();
+            this.restartPosition();
           }
         }
       }
@@ -312,14 +358,13 @@ export default class GameScene extends Phaser.Scene {
     this.cameras.main.startFollow(this.player);
     this.cameras.main.setBounds(0, 0, 5000, 800);
   }
-  update() {
-    if(this.player.body.x <= 140 && this.player.body.y == 650){
+  update(time:number) {
+    if (this.player.body.x <= 140 && this.player.body.y == 650) {
       this.stairs.setAlpha(0);
     }
     if (this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.S).isDown) {
       console.log(this.player.body.x, this.player.body.y);
     }
-    if (this.playerIsHurt) return;
     for (let i = 0; i < this.eagleArray.length; i++) {
       try {
         if (
@@ -334,14 +379,24 @@ export default class GameScene extends Phaser.Scene {
           this.eagleArray[i].sprite.setVelocityY(100);
         }
       } catch (e) {
-        // this.scene.restart();
       }
     }
+    if (this.HP < 0) {
+      this.scene.start("EndScene",{score:this.score})
+      this.sound.stopAll()
+    }
 
+    this.background.x = this.cameras.main.scrollX;
+    this.background.y = this.cameras.main.scrollY;
+    if (this.playerIsHurt) return;
     // const isOnGround = this.player?.body?.blocked.down;
     const isOnGround = this.player.body.velocity.y === 0;
     if (this.cursors?.right?.isDown) {
       if (isOnGround) {
+        if (time - this.lastFootstepTime > 500) {
+            this.footstep.play();
+            this.lastFootstepTime = time;
+        }
         this.player?.setFlipX(false);
         this.player?.anims.play("run", true);
         this.player?.setVelocityX(150);
@@ -350,6 +405,10 @@ export default class GameScene extends Phaser.Scene {
       }
     } else if (this.cursors?.left?.isDown) {
       if (isOnGround) {
+        if (time - this.lastFootstepTime > 500) {
+            this.footstep.play();
+            this.lastFootstepTime = time;
+        }
         this.player?.setFlipX(true);
         this.player?.anims.play("run", true);
         this.player?.setVelocityX(-150);
@@ -362,6 +421,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     if (this.cursors?.space?.isDown && isOnGround) {
+      this.jumpSound.play();
       this.player?.setVelocityY(-150);
     }
     if (!isOnGround) {
@@ -370,15 +430,6 @@ export default class GameScene extends Phaser.Scene {
     if (!isOnGround && this.player?.body?.velocity.y! > 0) {
       this.player?.anims.play("fail");
     }
-
-    if (this.HP < 0) {
-      this.HP = 4;
-      this.score = 0;
-      this.scene.restart();
-    }
-
-    this.background.x = this.cameras.main.scrollX;
-    this.background.y = this.cameras.main.scrollY;
   }
 
   createBackground() {
@@ -395,11 +446,11 @@ export default class GameScene extends Phaser.Scene {
     if (tiles) {
       this.platforms = map.createLayer("Tile Layer 1", tiles)?.setOrigin(0);
       this.trap = map.createLayer("trap", tiles)?.setOrigin(0);
-      this.stairs = map.createLayer("invisibleStair",tiles)?.setOrigin(0)
+      this.stairs = map.createLayer("invisibleStair", tiles)?.setOrigin(0);
     }
     this.platforms.setCollisionByExclusion([-1]);
     this.trap.setCollisionByExclusion([-1]);
-    this.stairs.setCollisionByExclusion([-1])
+    this.stairs.setCollisionByExclusion([-1]);
   }
 
   createEnemies() {}
@@ -512,14 +563,12 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.physics.add.collider(this.player, this.trap, (player, trap) => {
-      this.score = 0;
-      this.HP = 4;
-      this.scene.restart();
+      this.HP--;
+      this.handleHPChange();
+      this.restartPosition();
     });
 
-    this.physics.add.collider(this.player, this.stairs, (player, stairs) => {
-
-    });
+    this.physics.add.collider(this.player, this.stairs, (player, stairs) => {});
 
     this.physics.add.overlap(
       this.player,
@@ -540,6 +589,7 @@ export default class GameScene extends Phaser.Scene {
   handlePlayerEnemyCollision(player: any, enemy: any) {
     enemy.setVelocityX(0);
     if (player.body.bottom <= enemy.body.top + 10) {
+      this.jumpEagle.play();
       player.setVelocityY(-100);
       const deathAnimation = this.add.sprite(
         enemy.x + enemy.body.width / 2,
@@ -556,6 +606,7 @@ export default class GameScene extends Phaser.Scene {
       );
       enemy.disableBody(true, true);
     } else {
+      this.enemyCollision.play()
       this.playerIsHurt = true;
       player.anims.play("hurt", true);
       this.time.delayedCall(1000, () => {
@@ -569,6 +620,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   handlePlayerItemsCollision(player: any, item: any) {
+    
     const feedbackAnims = this.add.sprite(
       item.x + item.body.width / 2,
       item.y - item.body.height / 2,
@@ -583,9 +635,11 @@ export default class GameScene extends Phaser.Scene {
       this
     );
     if (item.texture.key == "cherry") {
+      this.collectingCherry.play();
       this.score++;
       this.scoreText.setText(`Score:${this.score}`);
     } else {
+      this.collectingDiamond.play();
       this.HP = 4;
       this.handleHPChange();
     }
@@ -608,5 +662,25 @@ export default class GameScene extends Phaser.Scene {
         image.setScrollFactor(0);
       }
     );
+  }
+  restartPosition(){
+    if(this.player.body.y <=90 ){
+      this.player.body.y = 40;
+      this.player.body.x = 40;
+    }else if(this.player.body.y < 295){
+      this.player.body.y = 90;
+      this.player.body.x = 1997;
+    }
+    else if(this.player.body.y<442){
+      this.player.body.y = 310;
+      this.player.body.x = 10;
+    }
+    // else if(this.player.body.y<778){
+
+    // }
+    else{
+      this.player.body.y = 500;
+      this.player.body.x = 2036;
+    }
   }
 }
