@@ -19,7 +19,7 @@ export default class GameScene extends Phaser.Scene {
   private platforms: any;
   private trap: any;
   private stairs: any;
-  private collectingCherry:any;
+  private collectingCherry: any;
   private collectingDiamond: any;
   private jumpEagle: any;
   private music: any;
@@ -38,6 +38,8 @@ export default class GameScene extends Phaser.Scene {
     { x: 139, y: 570 },
   ];
   private cherryGroup!: Phaser.GameObjects.Group;
+  private opossumGroup!: Phaser.GameObjects.Group;
+  private frogGroup!: Phaser.GameObjects.Group;
   private gemGroup!: Phaser.GameObjects.Group;
   private width!: number;
   private height!: number;
@@ -45,7 +47,7 @@ export default class GameScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
   private imageGroup!: Phaser.GameObjects.Group;
   private HP = 4;
-  lastFootstepTime: number = 0;
+  private lastFootstepTime: number = 0;
   constructor() {
     super({ key: "GameScene" });
   }
@@ -121,16 +123,16 @@ export default class GameScene extends Phaser.Scene {
       "diamond", process.env.PUBLIC_URL + "/assets/sound/diamond.wav"
     );
     this.load.audio(
-      "music",process.env.PUBLIC_URL + "/assets/sound/music.wav"
+      "music", process.env.PUBLIC_URL + "/assets/sound/music.wav"
     )
     this.load.audio(
-      "footstep",process.env.PUBLIC_URL+"/assets/sound/footstep.wav"
+      "footstep", process.env.PUBLIC_URL + "/assets/sound/footstep.wav"
     )
     this.load.audio(
-      "jump",process.env.PUBLIC_URL+"/assets/sound/jump.wav"
+      "jump", process.env.PUBLIC_URL + "/assets/sound/jump.wav"
     )
     this.load.audio(
-      "enemyCollision",process.env.PUBLIC_URL+"/assets/sound/enemyCollision.wav"
+      "enemyCollision", process.env.PUBLIC_URL + "/assets/sound/enemyCollision.wav"
     )
     this.load.spritesheet(
       "eagle",
@@ -141,13 +143,30 @@ export default class GameScene extends Phaser.Scene {
       }
     );
     this.load.spritesheet(
-      "key",
-      process.env.PUBLIC_URL + "/assets/spritesheets/key-blue.png",
+      "opossum",
+      process.env.PUBLIC_URL + "/assets/spritesheets/oposum.png",
       {
-        frameWidth: 15,
+        frameWidth: 36,
+        frameHeight: 28,
+      }
+    );
+    this.load.spritesheet(
+      "frog-idle",
+      process.env.PUBLIC_URL + "/assets/spritesheets/frog-idle.png",
+      {
+        frameWidth: 36,
+        frameHeight: 28,
+      }
+    );
+    this.load.spritesheet(
+      "frog-jump",
+      process.env.PUBLIC_URL + "/assets/spritesheets/frog-jump.png",
+      {
+        frameWidth: 33,
         frameHeight: 32,
       }
     );
+
     this.load.spritesheet(
       "enemy-deadth",
       process.env.PUBLIC_URL + "/assets/spritesheets/enemy-deadth.png",
@@ -203,97 +222,184 @@ export default class GameScene extends Phaser.Scene {
       process.env.PUBLIC_URL + "/assets/cherryPos.txt"
     );
     this.load.text("gemPos", process.env.PUBLIC_URL + "/assets/gemPos.txt");
+    this.load.text(
+      "opossumPos",
+      process.env.PUBLIC_URL + "/assets/opossumPos.txt"
+    );
+    this.load.text(
+      "frog",
+      process.env.PUBLIC_URL + "/assets/frog.txt"
+    );
   }
 
   create() {
-    this.music = this.sound.add("music",{loop:true});
-    this.music.play();
-    this.cameras.main.setZoom(1.5);
-    this.scoreText = this.add
-      .text(110, 150, `Score:0`, {
-        fontSize: "18px",
-        color: "#000",
-      })
-      .setDepth(2)
-      .setScrollFactor(0);
-    this.add
-      .text(110, 180, "HP:", {
-        fontSize: "18px",
-        color: "#000",
-      })
-      .setDepth(2)
-      .setScrollFactor(0);
-    this.imageGroup = this.add
-      .group({
-        key: "heart",
-        repeat: 4,
-        setXY: { x: 120, y: 160, stepX: 20 },
-      })
-      .setDepth(2)
-      .setOrigin(0);
-
-    (this.imageGroup.getChildren() as Phaser.GameObjects.Image[]).forEach(
-      (image) => {
-        image.setScrollFactor(0);
-      }
-    );
-
-    this.collectingCherry = this.sound.add("cherry");
-    this.collectingDiamond = this.sound.add("diamond")
-    this.jumpEagle = this.sound.add("eagle");
-    this.footstep = this.sound.add("footstep");
-    this.jumpSound = this.sound.add("jump")
-    this.enemyCollision = this.sound.add("enemyCollision")
-
-    this.add.image(0, 0, "tiles").setOrigin(0).setDepth(1);
-    this.height = this.sys.game.config.height as number;
-    this.width = this.sys.game.config.width as number;
-
+    this.addSound();
+    this.addText();
     this.createBackground();
     this.createPlatform();
     this.createAnims();
+    this.addCharacter();
+    this.setCamera();
+    this.addItems();
+    this.addEagle();
+    this.createCollider();
+    this.setWorld();
+  }
 
-    this.player = this.physics.add
-      .sprite(40, 40, "player")
-      // .sprite(1504,650,"player")
-      .setOrigin(0, 1)
-      .setGravityY(300)
-      .setDepth(100);
-    this.player.setCollideWorldBounds(true);
-    this.player.body.onWorldBounds = true;
-    this.player.body.setSize(20, 22);
-    this.player.body.setOffset(this.player.body.offset.x, 10);
-    for (let i = 0; i < 9; i++) {
-      const x = Math.floor(Math.random() * (2000 - 45 + 1)) + 45;
-      const y = Math.floor(Math.random() * (600 - 50 + 1)) + 50;
-      let eagle: Eagle = {
-        sprite: this.physics.add
-          .sprite(x, y, "eagle")
-          .play("eagle")
-          .setOrigin(0, 1)
-          .setImmovable(true)
-          .setVelocityY(100)
-          .setDepth(100),
-        y: y,
-        x: x,
-      };
-      this.eagleArray.push(eagle);
+  update(time: number) {
+    if (this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.S).isDown) {
+      console.log(this.player.body.x, this.player.body.y);
+    }
+    this.handleEndScene();
+    this.eagleMove();
+    this.background.x = this.cameras.main.scrollX;
+    this.background.y = this.cameras.main.scrollY;
+    if (this.playerIsHurt) return;
+    this.handleCharacterMove(time);
+  }
+
+
+  handleEndScene() {
+    if (this.HP < 0) {
+      this.scene.start("EndScene", { score: this.score })
+      this.sound.stopAll()
+    }
+  }
+  handleCharacterMove(time: number) {
+    const isOnGround = this.player?.body?.blocked.down;
+    // const isOnGround = this.player.body.velocity.y === 0;
+    if (this.cursors?.right?.isDown) {
+      if (isOnGround) {
+        if (time - this.lastFootstepTime > 500) {
+          this.footstep.play();
+          this.lastFootstepTime = time;
+        }
+        this.player?.setFlipX(false);
+        this.player?.anims.play("run", true);
+        this.player?.setVelocityX(150);
+      } else {
+        this.player?.setVelocityX(130);
+      }
+    } else if (this.cursors?.left?.isDown) {
+      if (isOnGround) {
+        if (time - this.lastFootstepTime > 500) {
+          this.footstep.play();
+          this.lastFootstepTime = time;
+        }
+        this.player?.setFlipX(true);
+        this.player?.anims.play("run", true);
+        this.player?.setVelocityX(-150);
+      } else {
+        this.player?.setVelocityX(-130);
+      }
+    } else {
+      this.player?.setVelocityX(0);
+      this.player?.anims.play("idle", true);
     }
 
-    for (let i = 0; i < this.eaglePosition.length; i++) {
-      let eagle: Eagle = {
-        sprite: this.physics.add
-          .sprite(this.eaglePosition[i].x, this.eaglePosition[i].y, "eagle")
-          .play("eagle")
-          .setOrigin(0, 1)
-          .setImmovable(true)
-          .setVelocityY(100)
-          .setDepth(100),
-        y: this.eaglePosition[i].y,
-        x: this.eaglePosition[i].x,
-      };
-      this.eagleArray.push(eagle);
+    if (this.cursors?.space?.isDown && isOnGround) {
+      this.jumpSound.play();
+      this.player?.setVelocityY(-150);
     }
+    if (!isOnGround) {
+      this.player?.anims.play("jump");
+    }
+    if (!isOnGround && this.player?.body?.velocity.y! > 0) {
+      this.player?.anims.play("fail");
+    }
+  }
+
+  eagleMove() {
+    this.opossumGroup.children.iterate((opossum: Phaser.GameObjects.GameObject): boolean | null => {
+      const sprite = opossum as Phaser.Physics.Arcade.Sprite;
+      if (!sprite.getData('initialX') && sprite.body) {
+        sprite.setData('initialX', sprite.x);
+        sprite.setData('movingLeft', true);
+        sprite.setVelocityX(-100);
+        sprite.setFlipX(false);
+      }
+      const initialX = sprite.getData('initialX') as number;
+      const movingLeft = sprite.getData('movingLeft') as boolean;
+      if (sprite.body) {
+        if (movingLeft && sprite.x <= initialX - 200) {
+          sprite.setVelocityX(100); // Move right
+          sprite.setData('movingLeft', false);
+          sprite.setFlipX(true); // Unflip sprite
+        } else if (!movingLeft && sprite.x >= initialX) {
+          sprite.setVelocityX(-100); // Move left
+          sprite.setData('movingLeft', true);
+          sprite.setFlipX(false);
+        }
+      }
+      return null;
+    });
+
+    this.frogGroup.children.iterate((frog: Phaser.GameObjects.GameObject): boolean | null => {
+      const arcadeFrog = frog as Phaser.Physics.Arcade.Sprite;
+      let isOnGround = arcadeFrog.body && arcadeFrog.body instanceof Phaser.Physics.Arcade.Body && arcadeFrog.body.blocked.down;
+      const sprite = frog as Phaser.Physics.Arcade.Sprite;
+      if (isOnGround) {
+        if (frog.getData("canJump")) {
+          if (frog.getData("moveLeft")) {
+            sprite.setVelocity(-100, -150);
+          } else {
+            sprite.setVelocity(100, -150);
+          }
+          sprite.setFlipX(!frog.getData("moveLeft"))
+          frog.setData("canJump", false)
+          this.time.delayedCall(4000, () => {
+            frog.setData("moveLeft", !frog.getData("moveLeft"))
+            frog.setData("canJump", true)
+          });
+        }
+        if (sprite.body?.velocity.y == 0) {
+          sprite.setVelocityX(0);
+        }
+        sprite.play("frog-idle", true)
+      }
+      else if (!isOnGround && frog.body?.velocity.y! < 0) {
+        sprite.play("frog-jump-up");
+      }
+      else if (!isOnGround && frog.body?.velocity.y! >= 0) {
+        sprite.play("frog-jump-down");
+      }
+      return null;
+    });
+
+    for (let i = 0; i < this.eagleArray.length; i++) {
+      if (
+        this.eagleArray[i].sprite &&
+        this.eagleArray[i].sprite.y > this.eagleArray[i].y + 50
+      ) {
+        this.eagleArray[i].sprite.setVelocityY(-100);
+      } else if (
+        this.eagleArray[i] &&
+        this.eagleArray[i].sprite.y < this.eagleArray[i].y - 100
+      ) {
+        this.eagleArray[i].sprite.setVelocityY(100);
+      }
+    }
+  }
+
+  setCamera() {
+    this.cameras.main.setZoom(1.5);
+    this.cameras.main.startFollow(this.player);
+    this.cameras.main.setBounds(0, 0, 5000, 800);
+  }
+
+  setWorld() {
+    this.physics.world.setBounds(0, 0, 5000, 800, false, false, false, false);
+    this.physics.world.on('worldbounds', (up: boolean, down: boolean, left: boolean, right: boolean) => {
+      if (down) {
+        this.HP--;
+        this.handleHPChange();
+        this.restartPosition();
+      }
+    });
+  }
+
+
+  addItems() {
     this.cherryGroup = this.add.group();
 
     let data = this.cache.text.get("cherryPos");
@@ -333,103 +439,147 @@ export default class GameScene extends Phaser.Scene {
         this.gemGroup.add(gem);
       }
     }
-    this.physics.add.sprite(1884, 530, "key").play("key").setOrigin(0, 1);
+  }
 
-    this.createCollider();
+  addEagle() {
+    this.opossumGroup = this.add.group();
+
+    let data = this.cache.text.get("opossumPos");
+
+    let lines = data.split("\n");
+
+    for (let line of lines) {
+      let pos = line.split(",");
+      if (pos.length == 2) {
+        let x = parseFloat(pos[0].trim());
+        let y = parseFloat(pos[1].trim());
+        let opossum = this.physics.add
+          .sprite(x, y, "opossum")
+          .play("opossum")
+          .setOrigin(0, 1)
+          .setDepth(100)
+          .setGravityY(300)
+        this.opossumGroup.add(opossum);
+      }
+    }
+
+    this.frogGroup = this.add.group();
+
+    data = this.cache.text.get("frog");
+
+    lines = data.split("\n");
+
+    for (let line of lines) {
+      let pos = line.split(",");
+      if (pos.length == 2) {
+        let x = parseFloat(pos[0].trim());
+        let y = parseFloat(pos[1].trim());
+        let frog = this.physics.add
+          .sprite(x, y, "frog-idle")
+          .play("frog-idle")
+          .setOrigin(0, 1)
+          .setDepth(100)
+          .setGravityY(300)
+          .setData("canJump", true)
+          .setData("moveLeft", true);
+        this.frogGroup.add(frog);
+      }
+    }
+
+    for (let i = 0; i < 9; i++) {
+      const x = Math.floor(Math.random() * (2000 - 45 + 1)) + 45;
+      const y = Math.floor(Math.random() * (600 - 50 + 1)) + 50;
+      let eagle: Eagle = {
+        sprite: this.physics.add
+          .sprite(x, y, "eagle")
+          .play("eagle")
+          .setOrigin(0, 1)
+          .setImmovable(true)
+          .setVelocityY(100)
+          .setDepth(100)
+          .setData("canOverlap", true),
+        y: y,
+        x: x,
+      };
+      this.eagleArray.push(eagle);
+    }
+
+    for (let i = 0; i < this.eaglePosition.length; i++) {
+      let eagle: Eagle = {
+        sprite: this.physics.add
+          .sprite(this.eaglePosition[i].x, this.eaglePosition[i].y, "eagle")
+          .play("eagle")
+          .setOrigin(0, 1)
+          .setImmovable(true)
+          .setVelocityY(100)
+          .setDepth(100),
+        y: this.eaglePosition[i].y,
+        x: this.eaglePosition[i].x,
+      };
+      this.eagleArray.push(eagle);
+    }
+  }
+
+  addCharacter() {
+    this.player = this.physics.add
+      .sprite(10, 40, "player")
+      // .sprite(1797, 600, "player")
+      .setOrigin(0, 1)
+      .setGravityY(300)
+      .setDepth(100)
+      .setData("canOverlap", true);
+    this.player.setCollideWorldBounds(true);
+    this.player.body.setSize(20, 22);
+    this.player.body.setOffset(this.player.body.offset.x, 10);
     this.player.anims.play("idle", true);
     this.cursors = this.input.keyboard?.createCursorKeys();
+  }
 
-    this.physics.world.setBounds(0, 0, 5000, 800,true,true,false ,true);
-    this.physics.world.on(
-      "worldbounds",
-      (
-        body: Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody,
-        down: boolean
-      ) => {
-        if (body.gameObject === this.player) {
-          if (down) {
-            this.HP--;
-            this.handleHPChange();
-            this.restartPosition();
-          }
-        }
+
+  addSound() {
+    this.collectingCherry = this.sound.add("cherry");
+    this.collectingDiamond = this.sound.add("diamond")
+    this.jumpEagle = this.sound.add("eagle");
+    this.footstep = this.sound.add("footstep");
+    this.jumpSound = this.sound.add("jump")
+    this.enemyCollision = this.sound.add("enemyCollision")
+    this.music = this.sound.add("music", { loop: true });
+    this.music.play();
+  }
+
+  addText() {
+    this.scoreText = this.add
+      .text(110, 150, `Score:0`, {
+        fontSize: "18px",
+        color: "#000",
+      })
+      .setDepth(2)
+      .setScrollFactor(0);
+    this.add
+      .text(110, 180, "HP:", {
+        fontSize: "18px",
+        color: "#000",
+      })
+      .setDepth(2)
+      .setScrollFactor(0);
+    this.imageGroup = this.add
+      .group({
+        key: "heart",
+        repeat: 4,
+        setXY: { x: 120, y: 160, stepX: 20 },
+      })
+      .setDepth(2)
+      .setOrigin(0);
+
+    (this.imageGroup.getChildren() as Phaser.GameObjects.Image[]).forEach(
+      (image) => {
+        image.setScrollFactor(0);
       }
     );
-    this.cameras.main.startFollow(this.player);
-    this.cameras.main.setBounds(0, 0, 5000, 800);
-  }
-  update(time:number) {
-    if (this.player.body.x <= 140 && this.player.body.y == 650) {
-      this.stairs.setAlpha(0);
-    }
-    if (this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.S).isDown) {
-      console.log(this.player.body.x, this.player.body.y);
-    }
-    for (let i = 0; i < this.eagleArray.length; i++) {
-      try {
-        if (
-          this.eagleArray[i].sprite &&
-          this.eagleArray[i].sprite.y > this.eagleArray[i].y + 50
-        ) {
-          this.eagleArray[i].sprite.setVelocityY(-100);
-        } else if (
-          this.eagleArray[i] &&
-          this.eagleArray[i].sprite.y < this.eagleArray[i].y - 100
-        ) {
-          this.eagleArray[i].sprite.setVelocityY(100);
-        }
-      } catch (e) {
-      }
-    }
-    if (this.HP < 0) {
-      this.scene.start("EndScene",{score:this.score})
-      this.sound.stopAll()
-    }
 
-    this.background.x = this.cameras.main.scrollX;
-    this.background.y = this.cameras.main.scrollY;
-    if (this.playerIsHurt) return;
-    // const isOnGround = this.player?.body?.blocked.down;
-    const isOnGround = this.player.body.velocity.y === 0;
-    if (this.cursors?.right?.isDown) {
-      if (isOnGround) {
-        if (time - this.lastFootstepTime > 500) {
-            this.footstep.play();
-            this.lastFootstepTime = time;
-        }
-        this.player?.setFlipX(false);
-        this.player?.anims.play("run", true);
-        this.player?.setVelocityX(150);
-      } else {
-        this.player?.setVelocityX(130);
-      }
-    } else if (this.cursors?.left?.isDown) {
-      if (isOnGround) {
-        if (time - this.lastFootstepTime > 500) {
-            this.footstep.play();
-            this.lastFootstepTime = time;
-        }
-        this.player?.setFlipX(true);
-        this.player?.anims.play("run", true);
-        this.player?.setVelocityX(-150);
-      } else {
-        this.player?.setVelocityX(-130);
-      }
-    } else {
-      this.player?.setVelocityX(0);
-      this.player?.anims.play("idle", true);
-    }
-
-    if (this.cursors?.space?.isDown && isOnGround) {
-      this.jumpSound.play();
-      this.player?.setVelocityY(-150);
-    }
-    if (!isOnGround) {
-      this.player?.anims.play("jump");
-    }
-    if (!isOnGround && this.player?.body?.velocity.y! > 0) {
-      this.player?.anims.play("fail");
-    }
+    this.add.image(0, 0, "tiles").setOrigin(0).setDepth(1);
+    this.height = this.sys.game.config.height as number;
+    this.width = this.sys.game.config.width as number;
   }
 
   createBackground() {
@@ -443,17 +593,16 @@ export default class GameScene extends Phaser.Scene {
   createPlatform() {
     const map = this.make.tilemap({ key: "map" });
     const tiles = map?.addTilesetImage("tileset", "tiles");
+    const tilesTrap = map?.addTilesetImage("tileset3", "tiles")
     if (tiles) {
       this.platforms = map.createLayer("Tile Layer 1", tiles)?.setOrigin(0);
-      this.trap = map.createLayer("trap", tiles)?.setOrigin(0);
+      this.trap = map.createLayer("trap", tilesTrap!)?.setOrigin(0);
       this.stairs = map.createLayer("invisibleStair", tiles)?.setOrigin(0);
     }
     this.platforms.setCollisionByExclusion([-1]);
     this.trap.setCollisionByExclusion([-1]);
     this.stairs.setCollisionByExclusion([-1]);
   }
-
-  createEnemies() {}
 
   createAnims() {
     this.anims.create({
@@ -511,6 +660,33 @@ export default class GameScene extends Phaser.Scene {
     });
 
     this.anims.create({
+      key: "opossum",
+      frames: this.anims.generateFrameNumbers("opossum", { start: 0, end: 5 }),
+      frameRate: 10,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: "frog-idle",
+      frames: this.anims.generateFrameNumbers("frog-idle", { start: 0, end: 3 }),
+      frameRate: 10,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: "frog-jump-up",
+      frames: this.anims.generateFrameNumbers("frog-jump", { start: 1, end: 1 }),
+      frameRate: 8,
+      repeat: -1,
+    });
+    this.anims.create({
+      key: "frog-jump-down",
+      frames: this.anims.generateFrameNumbers("frog-jump", { start: 2, end: 2 }),
+      frameRate: 10,
+      repeat: -1,
+    });
+
+    this.anims.create({
       key: "enemy-deadth",
       frameRate: 12,
       frames: this.anims.generateFrameNumbers("enemy-deadth", {
@@ -553,7 +729,7 @@ export default class GameScene extends Phaser.Scene {
   createCollider() {
     this.physics.add.collider(this.player, this.platforms);
     for (let i = 0; i < this.eagleArray.length; i++) {
-      this.physics.add.collider(
+      this.physics.add.overlap(
         this.player,
         this.eagleArray[i].sprite,
         this.handlePlayerEnemyCollision,
@@ -561,6 +737,13 @@ export default class GameScene extends Phaser.Scene {
         this
       );
     }
+    this.physics.add.overlap(this.player, this.opossumGroup, this.handlePlayerEnemyCollision, undefined, this)
+
+    this.physics.add.overlap(this.player, this.frogGroup, this.handlePlayerEnemyCollision, undefined, this)
+
+    this.physics.add.collider(this.opossumGroup, this.platforms);
+
+    this.physics.add.collider(this.frogGroup, this.platforms);
 
     this.physics.add.collider(this.player, this.trap, (player, trap) => {
       this.HP--;
@@ -568,7 +751,7 @@ export default class GameScene extends Phaser.Scene {
       this.restartPosition();
     });
 
-    this.physics.add.collider(this.player, this.stairs, (player, stairs) => {});
+    this.physics.add.collider(this.player, this.stairs, (player, stairs) => { });
 
     this.physics.add.overlap(
       this.player,
@@ -587,7 +770,9 @@ export default class GameScene extends Phaser.Scene {
   }
 
   handlePlayerEnemyCollision(player: any, enemy: any) {
-    enemy.setVelocityX(0);
+    if (!player.getData('canOverlap')) {
+      return;
+    }
     if (player.body.bottom <= enemy.body.top + 10) {
       this.jumpEagle.play();
       player.setVelocityY(-100);
@@ -606,21 +791,26 @@ export default class GameScene extends Phaser.Scene {
       );
       enemy.disableBody(true, true);
     } else {
-      this.enemyCollision.play()
+      this.enemyCollision.play();
+      this.startBlinking(player)
       this.playerIsHurt = true;
       player.anims.play("hurt", true);
       this.time.delayedCall(1000, () => {
         this.playerIsHurt = false;
-        enemy.setVelocityY(100);
       });
       player.setVelocityX(player.flipX ? 30 : -30);
       this.HP--;
       this.handleHPChange();
+      player.setData('canOverlap', false);
+      this.time.delayedCall(3000, () => {
+        player.setData('canOverlap', true);
+        this.stopBlinking(player);
+      });
     }
   }
 
   handlePlayerItemsCollision(player: any, item: any) {
-    
+
     const feedbackAnims = this.add.sprite(
       item.x + item.body.width / 2,
       item.y - item.body.height / 2,
@@ -663,24 +853,53 @@ export default class GameScene extends Phaser.Scene {
       }
     );
   }
-  restartPosition(){
-    if(this.player.body.y <=90 ){
+  restartPosition() {
+    if (this.player.body.y <= 90) {
       this.player.body.y = 40;
       this.player.body.x = 40;
-    }else if(this.player.body.y < 295){
+    } else if (this.player.body.y < 295) {
       this.player.body.y = 90;
       this.player.body.x = 1997;
     }
-    else if(this.player.body.y<442){
+    else if (this.player.body.y < 442) {
       this.player.body.y = 310;
       this.player.body.x = 10;
-    }
-    // else if(this.player.body.y<778){
-
-    // }
-    else{
+    } else {
       this.player.body.y = 500;
       this.player.body.x = 2036;
+    }
+  }
+
+  startBlinking(character: Phaser.GameObjects.Sprite) {
+    if (!character.getData('isBlinking')) {
+      character.setData('isBlinking', true);
+      const originalTint = character.tint;
+
+      character.setData('blinkTween', this.tweens.add({
+        targets: character,
+        tint: 0xFF0000,
+        ease: 'Linear',
+        duration: 100,
+        yoyo: true,
+        repeat: -1,
+        onStart: () => {
+          character.setTint(0xFF0000);
+        },
+        onYoyo: () => {
+          character.clearTint();
+        },
+        onComplete: () => {
+          character.clearTint();
+          character.setTint(originalTint);
+        }
+      }));
+    }
+  }
+  stopBlinking(character: Phaser.GameObjects.Sprite) {
+    character.setData('isBlinking', false);
+    if (character.getData('blinkTween')) {
+      character.getData('blinkTween').stop();
+      character.clearTint();
     }
   }
 }
