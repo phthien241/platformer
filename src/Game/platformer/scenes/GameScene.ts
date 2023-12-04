@@ -927,13 +927,16 @@ export default class GameScene extends Phaser.Scene {
     }
   }
   
-
-  
   stopBlinking(character: Phaser.GameObjects.Sprite) {
-    character.setData('isBlinking', false);
-    if (character.getData('blinkTween')) {
-      character.getData('blinkTween').stop();
-      character.clearTint();
+    if (character.getData('isBlinking')) {
+      character.setData('isBlinking', false);
+        const blinkTween = character.getData('blinkTween');
+      if (blinkTween) {
+        blinkTween.stop();
+          character.alpha = 1;
+      }
+        character.clearTint();
     }
   }
+  
 }
