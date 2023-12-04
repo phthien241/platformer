@@ -1,4 +1,3 @@
-import { platform } from "os";
 import Phaser from "phaser";
 
 interface Eagle {
@@ -13,19 +12,21 @@ interface specialEaglePosition {
 }
 
 export default class GameScene extends Phaser.Scene {
-  private background: any;
+  private background!: Phaser.GameObjects.Image;
   private playerIsHurt = false;
-  private player?: any;
-  private platforms: any;
-  private trap: any;
-  private stairs: any;
+  private player!: Phaser.Physics.Arcade.Sprite;
+  private endPoint!: Phaser.Physics.Arcade.Sprite;
+  private platforms!: Phaser.Tilemaps.TilemapLayer;
+  private trap!: Phaser.Tilemaps.TilemapLayer;
+  private stairs!: Phaser.Tilemaps.TilemapLayer;
   private collectingCherry: any;
   private collectingDiamond: any;
-  private jumpEagle: any;
-  private music: any;
-  private enemyCollision: any;
-  private jumpSound: any;
-  private footstep: any;
+  private success!: Phaser.Sound.BaseSound;
+  private killEnemy!: Phaser.Sound.BaseSound;
+  private music!: Phaser.Sound.BaseSound;
+  private enemyCollision!: Phaser.Sound.BaseSound;
+  private jumpSound!: Phaser.Sound.BaseSound;
+  private footstep!: Phaser.Sound.BaseSound;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private eagleArray: Eagle[] = [];
   private eaglePosition: specialEaglePosition[] = [
@@ -53,6 +54,10 @@ export default class GameScene extends Phaser.Scene {
   }
 
   preload() {
+    this.load.image(
+      "diamond",
+      process.env.PUBLIC_URL + "/assets/sprites/endpoint/diamond.png",
+    )
     this.load.image(
       "background",
       process.env.PUBLIC_URL + "/assets/environment/Background/back.png"
@@ -114,10 +119,13 @@ export default class GameScene extends Phaser.Scene {
       process.env.PUBLIC_URL + "/assets/sprites/player/jump/player-jump-2.png"
     );
     this.load.audio(
+      "success", process.env.PUBLIC_URL + "/assets/sound/success.wav"
+    );
+    this.load.audio(
       "cherry", process.env.PUBLIC_URL + "/assets/sound/cherry.wav"
     );
     this.load.audio(
-      "eagle", process.env.PUBLIC_URL + "/assets/sound/eagle.wav"
+      "kill-enemy", process.env.PUBLIC_URL + "/assets/sound/kill-enemy.wav"
     );
     this.load.audio(
       "diamond", process.env.PUBLIC_URL + "/assets/sound/diamond.wav"
@@ -236,19 +244,26 @@ export default class GameScene extends Phaser.Scene {
     this.addSound();
     this.addText();
     this.createBackground();
-    this.createPlatform();
     this.createAnims();
     this.addCharacter();
+    this.createEndpoint();
+    this.createPlatform();
     this.setCamera();
     this.addItems();
     this.addEagle();
     this.createCollider();
     this.setWorld();
+    
   }
 
   update(time: number) {
     if (this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.S).isDown) {
-      console.log(this.player.body.x, this.player.body.y);
+      console.log(this.player.body?.x, this.player.body?.y);
+    }
+    if (this.player.body!.y > 800) {
+      this.HP--;
+      this.handleHPChange();
+      this.restartPosition();
     }
     this.handleEndScene();
     this.eagleMove();
@@ -256,6 +271,14 @@ export default class GameScene extends Phaser.Scene {
     this.background.y = this.cameras.main.scrollY;
     if (this.playerIsHurt) return;
     this.handleCharacterMove(time);
+  }
+
+  createEndpoint() {
+    this.endPoint = this.physics.add
+      .sprite(25, 650, "diamond")
+      .setOrigin(0.5)
+      .setDepth(90)
+      .setScale(0.1)
   }
 
 
@@ -322,11 +345,11 @@ export default class GameScene extends Phaser.Scene {
       const movingLeft = sprite.getData('movingLeft') as boolean;
       if (sprite.body) {
         if (movingLeft && sprite.x <= initialX - 200) {
-          sprite.setVelocityX(100); // Move right
+          sprite.setVelocityX(100);
           sprite.setData('movingLeft', false);
-          sprite.setFlipX(true); // Unflip sprite
+          sprite.setFlipX(true);
         } else if (!movingLeft && sprite.x >= initialX) {
-          sprite.setVelocityX(-100); // Move left
+          sprite.setVelocityX(-100);
           sprite.setData('movingLeft', true);
           sprite.setFlipX(false);
         }
@@ -388,14 +411,14 @@ export default class GameScene extends Phaser.Scene {
   }
 
   setWorld() {
-    this.physics.world.setBounds(0, 0, 5000, 800, false, false, false, false);
-    this.physics.world.on('worldbounds', (up: boolean, down: boolean, left: boolean, right: boolean) => {
-      if (down) {
-        this.HP--;
-        this.handleHPChange();
-        this.restartPosition();
-      }
-    });
+    this.physics.world.setBounds(0, 0, 5000, 1000, false, false, false, false);
+    // this.physics.world.on('worldbounds', (up: boolean, down: boolean, left: boolean, right: boolean) => {
+    //   if (down) {
+    //     this.HP--;
+    //     this.handleHPChange();
+    //     this.restartPosition();
+    //   }
+    // });
   }
 
 
@@ -529,17 +552,18 @@ export default class GameScene extends Phaser.Scene {
       .setDepth(100)
       .setData("canOverlap", true);
     this.player.setCollideWorldBounds(true);
-    this.player.body.setSize(20, 22);
-    this.player.body.setOffset(this.player.body.offset.x, 10);
+    this.player.body?.setSize(20, 22);
+    this.player.body?.setOffset(this.player.body?.offset.x, 10);
     this.player.anims.play("idle", true);
     this.cursors = this.input.keyboard?.createCursorKeys();
   }
 
 
   addSound() {
+    this.success = this.sound.add("success")
     this.collectingCherry = this.sound.add("cherry");
     this.collectingDiamond = this.sound.add("diamond")
-    this.jumpEagle = this.sound.add("eagle");
+    this.killEnemy = this.sound.add("kill-enemy");
     this.footstep = this.sound.add("footstep");
     this.jumpSound = this.sound.add("jump")
     this.enemyCollision = this.sound.add("enemyCollision")
@@ -595,9 +619,9 @@ export default class GameScene extends Phaser.Scene {
     const tiles = map?.addTilesetImage("tileset", "tiles");
     const tilesTrap = map?.addTilesetImage("tileset3", "tiles")
     if (tiles) {
-      this.platforms = map.createLayer("Tile Layer 1", tiles)?.setOrigin(0);
-      this.trap = map.createLayer("trap", tilesTrap!)?.setOrigin(0);
-      this.stairs = map.createLayer("invisibleStair", tiles)?.setOrigin(0);
+      this.platforms = map.createLayer("Tile Layer 1", tiles)!.setOrigin(0);
+      this.trap = map.createLayer("trap", tilesTrap!)!.setOrigin(0);
+      this.stairs = map.createLayer("invisibleStair", tiles)!.setOrigin(0);
     }
     this.platforms.setCollisionByExclusion([-1]);
     this.trap.setCollisionByExclusion([-1]);
@@ -740,6 +764,7 @@ export default class GameScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.opossumGroup, this.handlePlayerEnemyCollision, undefined, this)
 
     this.physics.add.overlap(this.player, this.frogGroup, this.handlePlayerEnemyCollision, undefined, this)
+    this.physics.add.collider(this.player, this.endPoint,this.handleEndpointCollision,undefined,this)
 
     this.physics.add.collider(this.opossumGroup, this.platforms);
 
@@ -769,13 +794,25 @@ export default class GameScene extends Phaser.Scene {
     );
   }
 
+  handleEndpointCollision() {
+    this.sound.stopAll();
+    this.success.play();
+    setTimeout(() => {
+      this.scene.start('EndScene', { score: this.score });
+    }, 3000);
+    this.endPoint.disableBody();
+  }
+
   handlePlayerEnemyCollision(player: any, enemy: any) {
     if (!player.getData('canOverlap')) {
       return;
     }
     if (player.body.bottom <= enemy.body.top + 10) {
-      this.jumpEagle.play();
-      player.setVelocityY(-100);
+      this.killEnemy.play();
+      if(enemy.texture.key === "opossum")
+        player.setVelocityY(-200);  
+      else
+        player.setVelocityY(-100);
       const deathAnimation = this.add.sprite(
         enemy.x + enemy.body.width / 2,
         enemy.y - enemy.body.height / 2,
@@ -810,7 +847,6 @@ export default class GameScene extends Phaser.Scene {
   }
 
   handlePlayerItemsCollision(player: any, item: any) {
-
     const feedbackAnims = this.add.sprite(
       item.x + item.body.width / 2,
       item.y - item.body.height / 2,
@@ -831,6 +867,8 @@ export default class GameScene extends Phaser.Scene {
     } else {
       this.collectingDiamond.play();
       this.HP = 4;
+      this.score+=10;
+      this.scoreText.setText(`Score:${this.score}`);
       this.handleHPChange();
     }
     item.disableBody(true, true);
@@ -854,47 +892,43 @@ export default class GameScene extends Phaser.Scene {
     );
   }
   restartPosition() {
-    if (this.player.body.y <= 90) {
-      this.player.body.y = 40;
-      this.player.body.x = 40;
-    } else if (this.player.body.y < 295) {
-      this.player.body.y = 90;
-      this.player.body.x = 1997;
+    if (this.player.body!.y <= 90) {
+      this.player.body!.y = 40;
+      this.player.body!.x = 40;
+    } else if (this.player.body!.y < 295) {
+      this.player.body!.y = 90;
+      this.player.body!.x = 1997;
     }
-    else if (this.player.body.y < 442) {
-      this.player.body.y = 310;
-      this.player.body.x = 10;
+    else if (this.player.body!.y < 442) {
+      this.player.body!.y = 310;
+      this.player.body!.x = 10;
     } else {
-      this.player.body.y = 500;
-      this.player.body.x = 2036;
+      this.player.body!.y = 500;
+      this.player.body!.x = 2036;
     }
   }
 
-  startBlinking(character: Phaser.GameObjects.Sprite) {
+  startBlinking(character: Phaser.GameObjects.Rope): void {
     if (!character.getData('isBlinking')) {
       character.setData('isBlinking', true);
-      const originalTint = character.tint;
-
+  
       character.setData('blinkTween', this.tweens.add({
         targets: character,
-        tint: 0xFF0000,
+        alpha: { start: 1, to: 0.3 },
         ease: 'Linear',
         duration: 100,
-        yoyo: true,
         repeat: -1,
-        onStart: () => {
-          character.setTint(0xFF0000);
-        },
-        onYoyo: () => {
-          character.clearTint();
-        },
+        yoyo: true,
         onComplete: () => {
-          character.clearTint();
-          character.setTint(originalTint);
+          character.alpha = 1;
+          character.setData('isBlinking', false);
         }
       }));
     }
   }
+  
+
+  
   stopBlinking(character: Phaser.GameObjects.Sprite) {
     character.setData('isBlinking', false);
     if (character.getData('blinkTween')) {
