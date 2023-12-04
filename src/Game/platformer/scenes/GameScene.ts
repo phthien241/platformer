@@ -411,14 +411,14 @@ export default class GameScene extends Phaser.Scene {
   }
 
   setWorld() {
-    this.physics.world.setBounds(0, 0, 5000, 1000, false, false, false, false);
-    // this.physics.world.on('worldbounds', (up: boolean, down: boolean, left: boolean, right: boolean) => {
-    //   if (down) {
-    //     this.HP--;
-    //     this.handleHPChange();
-    //     this.restartPosition();
-    //   }
-    // });
+    this.physics.world.setBounds(0, 0, 5000, 1000, true, true, false, false);
+    this.physics.world.on('worldbounds', (up: boolean, down: boolean, left: boolean, right: boolean) => {
+      if (down) {
+        this.HP--;
+        this.handleHPChange();
+        this.restartPosition();
+      }
+    });
   }
 
 
