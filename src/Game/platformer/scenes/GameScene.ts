@@ -801,6 +801,7 @@ export default class GameScene extends Phaser.Scene {
       this.scene.start('EndScene', { score: this.score });
     }, 3000);
     this.endPoint.disableBody();
+    this.endPoint.destroy();
   }
 
   handlePlayerEnemyCollision(player: any, enemy: any) {
@@ -817,7 +818,7 @@ export default class GameScene extends Phaser.Scene {
         enemy.x + enemy.body.width / 2,
         enemy.y - enemy.body.height / 2,
         "enemy-deadth"
-      );
+      ).setDepth(90);
       deathAnimation.play("enemy-deadth");
       deathAnimation.on(
         "animationcomplete",
@@ -851,7 +852,7 @@ export default class GameScene extends Phaser.Scene {
       item.x + item.body.width / 2,
       item.y - item.body.height / 2,
       "item-feedback"
-    );
+    ).setDepth(90);
     feedbackAnims.play("item-feedback");
     feedbackAnims.on(
       "animationcomplete",
